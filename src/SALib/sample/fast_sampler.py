@@ -1,3 +1,5 @@
+from __future__ import division
+
 import math
 
 import numpy as np
@@ -63,7 +65,7 @@ def sample(problem, N, M=4, seed=None):
             g = 0.5 + (1 / math.pi) * np.arcsin(np.sin(omega2[j] * s + phi))
             X[l, j] = g
 
-    X = scale_samples(X, problem)
+    scale_samples(X, problem['bounds'])
     return X
 
 

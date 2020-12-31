@@ -1,4 +1,4 @@
-from typing import Dict
+from __future__ import division
 
 import numpy as np
 
@@ -7,8 +7,7 @@ from . import sobol_sequence
 from ..util import scale_samples, read_param_file
 
 
-def sample(problem: Dict, N: int, delta: float = 0.01, 
-           seed: int = None, skip_values: int = 1000) -> np.ndarray:
+def sample(problem, N, delta=0.01, seed=None):
     """Generate matrix of samples for derivative-based global sensitivity measure (dgsm).
     Start from a QMC (sobol) sequence and finite difference with delta % steps
 
@@ -18,16 +17,13 @@ def sample(problem: Dict, N: int, delta: float = 0.01,
         SALib problem specification
 
     N : int
-        Number of samples
+        number of samples
 
     delta : float
         Finite difference step size (percent)
     
     seed : int or None
-        Random seed value
-
-    skip_values : int
-        How many values of the Sobol sequence to skip
+        random seed value
 
     Returns
     ----------
@@ -39,12 +35,13 @@ def sample(problem: Dict, N: int, delta: float = 0.01,
     D = problem['num_vars']
     bounds = problem['bounds']
 
+    # How many values of the Sobol sequence to skip
+    skip_values = 1000
+
     # Create base sequence - could be any type of sampling
     base_sequence = sobol_sequence.sample(N + skip_values, D)
-
     # scale before finite differencing
-    base_sequence = scale_samples(base_sequence, problem)
-
+    scale_samples(base_sequence, bounds)
     dgsm_sequence = np.empty([N * (D + 1), D])
 
     index = 0

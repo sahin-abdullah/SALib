@@ -26,8 +26,8 @@ class LocalOptimisation(Strategy):
         improve the speed with which an optimal set of trajectories is
         found tremendously for larger sample sizes.
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         input_sample : np.ndarray
         N : int
             The number of trajectories
@@ -37,7 +37,6 @@ class LocalOptimisation(Strategy):
             The number of optimal trajectories to return
         num_groups : int, default=None
             The number of groups
-
         Returns
         -------
         list
@@ -95,8 +94,8 @@ class LocalOptimisation(Strategy):
         """Calculate combinatorial distance between a select group of
         trajectories, indicated by indices
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         indices : tuple
         distance_matrix : numpy.ndarray (M,M)
 
@@ -125,8 +124,8 @@ class LocalOptimisation(Strategy):
                         i: Union[str, int], m: Union[str, int]) -> Tuple:
         '''Get the indices that belong to the maximum distance in `distances`
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         indices_list : list
             list of tuples
         distances : numpy.ndarray
@@ -151,8 +150,8 @@ class LocalOptimisation(Strategy):
     def add_indices(self, indices: Tuple, distance_matrix: np.ndarray) -> List:
         '''Adds extra indices for the combinatorial problem.
 
-        Parameters
-        ----------
+        Arguments
+        ---------
         indices : tuple
         distance_matrix : numpy.ndarray (M,M)
 
