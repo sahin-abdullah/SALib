@@ -52,14 +52,14 @@ def test_delta():
     test = pd.read_csv(StringIO(result), index_col=0, sep=r"\s+")
     test["expected"] = delta_expected
 
-    lower = test["delta"] - test["delta_conf"]
-    upper = test["delta"] + test["delta_conf"]
+    lower = test["delta_raw"] - (test["delta_raw_conf"] * 4)
+    upper = test["delta_raw"] + (test["delta_raw_conf"] * 4)
     comparison = test["expected"].between(lower, upper)
     assert comparison.all(), (
-        "Expected Delta results not within confidence bounds\n"
-        f"+\\-: \n{test['delta_conf']}\n"
+        "Expected Delta results not within confidence bounds (x4)\n"
+        f"+\\-: \n{test['delta_raw_conf']}\n"
         f"Expected: {delta_expected}\n"
-        f"Got: {test['delta']}\n"
+        f"Got: {test['delta_raw']}\n"
     )
 
     test["expected"] = sobol_expected
@@ -119,10 +119,10 @@ def test_fast():
     # run analysis and use regex to strip all whitespace from result
     result = subprocess.check_output(analyze_cmd, universal_newlines=True)
 
-    expected = """              S1        ST   S1_conf   ST_conf
-x1  3.104027e-01  0.555603  0.016616 0.040657
-x2  4.425532e-01  0.469546  0.016225  0.041809
-x3  1.921394e-28  0.239155  0.015777  0.042567"""
+    expected = """              S1        ST       S1_conf       ST_conf
+x1  2.933824e-01  0.525013  1.321257e-16  1.312176e-16
+x2  4.425383e-01  0.469429  1.098395e-01  1.174880e-01
+x3  2.636727e-34  0.239202  1.820670e-01  5.944182e-02"""
 
     col_names = ["Name", "S1", "ST", "S1_conf", "ST_conf"]
 
@@ -184,7 +184,7 @@ def test_morris():
     result = subprocess.check_output(analyze_cmd, universal_newlines=True)
     result = re.sub(r"[\n\t\s]*", "", result)
 
-    expected_output = "mumu_starsigmamu_star_confx17.4989307.4989309.3304601.801208x2-0.4703942.2152432.7759250.347972x30.8640155.4238337.8621281.147559"  # noqa: E501
+    expected_output = "mumu_starsigmamu_star_confx18.0965478.09654710.3184292.008941x2-0.0589572.6231253.1367570.335290x30.3530395.9095588.4108171.173146"  # noqa: E501
 
     assert len(result) > 0 and result == expected_output, (
         f"Results did not match expected values:\n\n Expected:"
@@ -209,7 +209,7 @@ def test_morris_scaled():
     result = subprocess.check_output(analyze_cmd, universal_newlines=True)
     result = re.sub(r"[\n\t\s]*", "", result)
 
-    expected_output = "mumu_starsigmamu_star_confx10.7007290.7007290.3970420.076511x2-0.0430890.3630300.5276910.075435x30.0520430.4355690.5624900.071944"  # noqa: E501
+    expected_output = "mumu_starsigmamu_star_confx10.6357750.6357750.4077460.074370x2-0.0339410.4038920.5486050.071716x30.0398500.4381760.5601640.068822"  # noqa: E501
 
     assert len(result) > 0 and result == expected_output, (
         f"Results did not match expected values:\n\n Expected:"

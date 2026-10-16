@@ -13,12 +13,13 @@ from .util_funcs import (  # noqa: F401, E402
     read_param_file,
     _check_bounds,
     _check_groups,
+    handle_seed,
 )  # noqa: F401, E402
 from .problem import ProblemSpec  # noqa: F401, E402
 from .results import ResultDict  # noqa: F401, E402
 
 
-__all__ = ["scale_samples", "read_param_file", "avail_approaches"]
+__all__ = ["scale_samples", "read_param_file", "avail_approaches", "handle_seed"]
 
 
 def _scale_samples(params: np.ndarray, bounds: List):
@@ -144,9 +145,10 @@ def _nonuniform_scale_samples(params, bounds, dists):
                     bound to be 0
                     e.g. :code:`[3, 0.5]` assumes 0 to 3, with a peak at 1.5
             norm: normal distribution with mean and standard deviation
-            truncnorm: truncated normal distribution with upper and lower
+            truncnorm: truncated normal distribution with lower and upper
                     bounds, mean and standard deviation
             lognorm: lognormal with ln-space mean and standard deviation
+            weibull: weibull distribution with shape, scale and optional location
     """
     b = np.array(bounds, dtype=object)
 
@@ -206,6 +208,12 @@ def _nonuniform_scale_samples(params, bounds, dists):
                 conv_params[:, i] = params[:, i] * (b2 - b1) + b1
 
         elif dists[i] == "logunif":
+            if b1 <= 0 or b2 <= 0:
+                raise ValueError("Log-uniform distribution: both bounds must be > 0")
+            if b1 >= b2:
+                raise ValueError(
+                    "Log-uniform distribution: lower bound must be less than upper bound"
+                )
             conv_params[:, i] = sp.stats.loguniform.ppf(params[:, i], a=b1, b=b2)
 
         elif dists[i] == "norm":
@@ -245,8 +253,43 @@ def _nonuniform_scale_samples(params, bounds, dists):
                     sp.stats.norm.ppf(params[:, i], loc=b1, scale=b2)
                 )
 
+        # Weibull distribution
+        # parameters are shape (k), scale (lambda) and optional location
+        elif dists[i] == "weibull":
+            # checking for location parameter
+            if len(b[i]) == 3:
+                b1 = b[i][0]  # shape (k)
+                b2 = b[i][1]  # scale (lambda)
+                loc_start = b[i][2]  # location
+            elif len(b[i]) == 2:
+                b1 = b[i][0]
+                b2 = b[i][1]
+                loc_start = 0
+            else:
+                raise ValueError(
+                    "Unknown Weibull distribution specification. Check"
+                    " problem specification."
+                )
+
+            if b1 <= 0 or b2 <= 0:
+                raise ValueError(
+                    """Weibull distribution: shape and scale must be > 0"""
+                )
+            else:
+                conv_params[:, i] = sp.stats.weibull_min.ppf(
+                    params[:, i], c=b1, scale=b2, loc=loc_start
+                )
+
         else:
-            valid_dists = ["unif", "triang", "norm", "truncnorm", "lognorm"]
+            valid_dists = [
+                "unif",
+                "triang",
+                "norm",
+                "truncnorm",
+                "lognorm",
+                "logunif",
+                "weibull",
+            ]
             raise ValueError("Distributions: choose one of %s" % ", ".join(valid_dists))
 
     return conv_params
@@ -271,7 +314,7 @@ def extract_group_names(p: Dict) -> Tuple:
     else:
         groups = p["groups"]
 
-    names = list(pd.unique(groups))
+    names = list(pd.unique(np.array(groups)))
     number = len(names)
 
     return names, number
@@ -299,7 +342,7 @@ def compute_groups_matrix(groups: List):
         groups and a list of unique group names
     """
     num_vars = len(groups)
-    unique_group_names = pd.unique(groups)
+    unique_group_names = pd.unique(np.array(groups))
     number_of_groups = len(unique_group_names)
 
     indices = dict([(x, i) for (i, x) in enumerate(unique_group_names)])

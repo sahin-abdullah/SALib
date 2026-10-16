@@ -235,7 +235,7 @@ class ProblemSpec(dict):
 
         if ptqdm_available:
             # Display progress bar if available
-            res = p_imap(tmp_f, chunks, num_cpus=nprocs)
+            res = list(p_imap(tmp_f, chunks, num_cpus=nprocs))
         else:
             with Pool(nprocs) as pool:
                 res = list(pool.imap(tmp_f, chunks))
@@ -515,7 +515,11 @@ class ProblemSpec(dict):
         return axes
 
     def heatmap(
-        self, metric: str = None, index: str = None, title: str = None, ax=None
+        self,
+        metric: str | None = None,
+        index: str | None = None,
+        title: str | None = None,
+        ax=None,
     ):
         """Plot results as a heatmap.
 

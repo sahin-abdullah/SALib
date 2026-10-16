@@ -31,8 +31,10 @@ Included methods
 
 * Method of Morris, including groups and optimal trajectories (`Morris
   1991 <http://www.tandfonline.com/doi/abs/10.1080/00401706.1991.10484804>`__,
-  `Campolongo et al. 2007 <http://www.sciencedirect.com/science/article/pii/S1364815206002805>`__,
   `Ruano et al. 2012 <https://doi.org/10.1016/j.envsoft.2012.03.008>`__)
+
+* Radial OAT (`Campolongo et al. 2007 <https://doi.org/10.1016/j.envsoft.2006.10.004>`__,
+  `Campolongo et al. 2011 <https://doi.org/10.1016/j.cpc.2010.12.039>`__)
 
 * extended Fourier Amplitude Sensitivity Test (eFAST) (`Cukier et al. 1973 <http://scitation.aip.org/content/aip/journal/jcp/59/8/10.1063/1.1680571>`__,
   `Saltelli et al. 1999 <http://amstat.tandfonline.com/doi/abs/10.1080/00401706.1999.10485594>`__, `Pujol (2006) in Iooss et al., (2021) <http://scitation.aip.org/content/aip/journal/jcp/59/8/10.1063/1.1680571>`__)
@@ -47,6 +49,8 @@ Included methods
 
 * Derivative-based Global Sensitivity Measure (DGSM) (`Sobol and
   Kucherenko 2009 <http://www.sciencedirect.com/science/article/pii/S0378475409000354>`__)
+
+* Shapley Effects (`Goda 2021 <https://doi.org/10.1016/j.ress.2021.107702>`__)
 
 * Fractional Factorial Sensitivity Analysis
   (`Saltelli et al. 2008 <http://www.wiley.com/WileyCDA/WileyTitle/productCd-0470059974.html>`__)

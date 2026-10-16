@@ -51,3 +51,7 @@ MANIFEST
 playground/
 
 docs/html/
+
+tests/data/model_output.txt
+
+uv.lock

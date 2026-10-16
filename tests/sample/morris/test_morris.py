@@ -21,6 +21,7 @@ from SALib.util import (
     compute_groups_matrix,
     _define_problem_with_groups,
     _compute_delta,
+    handle_seed,
 )
 
 
@@ -81,6 +82,91 @@ def test_even_num_levels_no_warning(setup_param_file_with_groups):
             assert not any(
                 msg_check
             ), "Inappropriate num_levels warning raised when all okay"
+
+
+@mark.parametrize(
+    ("dist", "bounds"),
+    [
+        ("norm", [0.0, 1.0]),
+        ("lognorm", [0.0, 1.0]),
+        ("weibull", [1.5, 1.0]),
+        ("weibull", [1.5, 1.0, 2.0]),
+    ],
+)
+def test_unbounded_distributions_raise_for_nonfinite_samples(dist, bounds):
+    problem = {
+        "num_vars": 1,
+        "names": ["x1"],
+        "bounds": [bounds],
+        "dists": [dist],
+    }
+
+    with raises(ValueError, match=r"(?s)x1 \(" + dist + r"\).+truncnorm"):
+        sample(problem, 4, num_levels=4, seed=1)
+
+    # This seed/level combination never samples the 0/1 endpoints, so the
+    # error must come from the upfront check rather than the sampled values
+    with raises(ValueError, match=r"(?s)x1 \(" + dist + r"\).+truncnorm"):
+        sample(problem, 4, num_levels=8, seed=6)
+
+
+def test_mixed_distributions_report_only_unbounded_factors():
+    problem = {
+        "num_vars": 4,
+        "names": ["x1", "x2", "x3", "x4"],
+        "bounds": [[0.0, 1.0], [0.0, 1.0], [-2.0, 2.0, 0.0, 1.0], [1.5, 1.0]],
+        "dists": ["unif", "norm", "truncnorm", "weibull"],
+    }
+
+    with raises(ValueError) as err:
+        sample(problem, 4, num_levels=4, seed=1)
+
+    msg = str(err.value)
+    assert "x2 (norm), x4 (weibull)" in msg
+    assert "x1 (unif)" not in msg
+    assert "x3 (truncnorm)" not in msg
+
+
+def test_unbounded_distribution_in_group_raises():
+    problem = {
+        "num_vars": 3,
+        "names": ["x1", "x2", "x3"],
+        "groups": ["G1", "G1", "G2"],
+        "bounds": [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
+        "dists": ["unif", "lognorm", "unif"],
+    }
+
+    with raises(ValueError, match=r"x2 \(lognorm\)"):
+        sample(problem, 4, num_levels=4, seed=1)
+
+
+def test_bounded_distributions_with_groups_produce_finite_samples():
+    problem = {
+        "num_vars": 3,
+        "names": ["x1", "x2", "x3"],
+        "groups": ["G1", "G1", "G2"],
+        "bounds": [[0.0, 1.0], [-2.0, 2.0, 0.0, 1.0], [0.0, 1.0]],
+        "dists": ["unif", "truncnorm", "unif"],
+    }
+
+    samples = sample(problem, 4, num_levels=4, seed=1)
+
+    # N * (num_groups + 1) rows, one column per factor
+    assert samples.shape == (4 * 3, 3)
+    assert np.isfinite(samples).all()
+
+
+def test_bounded_distribution_produces_finite_samples():
+    problem = {
+        "num_vars": 1,
+        "names": ["x1"],
+        "bounds": [[-2.0, 2.0, 0.0, 1.0]],
+        "dists": ["truncnorm"],
+    }
+
+    samples = sample(problem, 4, num_levels=4, seed=1)
+
+    assert np.isfinite(samples).all()
 
 
 def test_group_in_param_file_read(setup_param_file_with_groups):
@@ -176,8 +262,9 @@ class TestGroupSampleGeneration:
         each row contains one element equal to 1, all others are 0
         no two columns have 1s in the same position
         """
+        rng = handle_seed(101)
         for i in range(1, 100):
-            output = _generate_p_star(i)
+            output = _generate_p_star(i, rng)
             if np.any(np.sum(output, 0) != np.ones(i)):
                 raise AssertionError("Not legal P along axis 0")
             elif np.any(np.sum(output, 1) != np.ones(i)):
@@ -192,11 +279,14 @@ class TestGroupSampleGeneration:
         assert_allclose(output, desired, rtol=1e-2)
 
     def test_generate_trajectory(self):
+        rng = handle_seed(101)
         # Two groups of three factors
         G = np.array([[1, 0], [0, 1], [0, 1]])
         # Four levels
+        rng = handle_seed(101)
+
         num_levels = 4
-        output = _generate_trajectory(G, num_levels)
+        output = _generate_trajectory(G, rng, num_levels=num_levels)
         if np.any((output > 1) | (output < 0)):
             raise AssertionError("Bound not working: %s", output)
         assert_equal(output.shape[0], 3)
@@ -226,14 +316,13 @@ class TestGroupSampleGeneration:
         assert_allclose(output, desired)
 
     def test_generate_x_star(self):
-        """ """
+        """Test against previously generated x_star values."""
         num_params = 4
         num_levels = 4
 
-        np.random.seed(10)
-        actual = _generate_x_star(num_params, num_levels)
-        print(actual)
-        expected = np.array([[0.333333, 0.333333, 0.0, 0.333333]])
+        rng = handle_seed(101)
+        actual = _generate_x_star(num_params, num_levels, rng)
+        expected = np.array([[0.0, 0.33333333, 0.33333333, 0.0]])
         assert_allclose(actual, expected, rtol=1e-05)
 
     def test_define_problem_with_groups_all_ok(self):

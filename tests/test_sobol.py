@@ -1,10 +1,11 @@
 from pytest import raises, mark
 from numpy.testing import assert_equal, assert_allclose
+
 import numpy as np
 from scipy.stats import norm
 
 from SALib.analyze import sobol
-from SALib.sample import saltelli, sobol_sequence
+from SALib.sample import sobol_sequence, sobol as sobol_sampler
 from SALib.test_functions import Ishigami, Sobol_G
 from SALib.util import read_param_file
 
@@ -12,7 +13,9 @@ from SALib.util import read_param_file
 def setup_samples(N=512, calc_second_order=True):
     param_file = "src/SALib/test_functions/params/Ishigami.txt"
     problem = read_param_file(param_file)
-    param_values = saltelli.sample(problem, N=N, calc_second_order=calc_second_order)
+    param_values = sobol_sampler.sample(
+        problem, N=N, calc_second_order=calc_second_order
+    )
     return problem, param_values
 
 
@@ -157,7 +160,7 @@ def test_Sobol_G_using_sobol():
     }
     N = 4096
     a = np.array([78, 12, 0.5, 2, 97, 33])
-    param_values = saltelli.sample(problem, N, calc_second_order=False)
+    param_values = sobol_sampler.sample(problem, N, calc_second_order=False)
     model_results = Sobol_G.evaluate(param_values, a)
     Si = sobol.analyze(problem, model_results, calc_second_order=False)
 
@@ -180,7 +183,7 @@ def test_constant_output():
         "bounds": [[0, 1], [0, 1], [0, 1]],
     }
     N = 256
-    param_values = saltelli.sample(problem, N, calc_second_order=False)
+    param_values = sobol_sampler.sample(problem, N, calc_second_order=False)
     model_results = mock_model(param_values)
     Si = sobol.analyze(problem, model_results, calc_second_order=False)
 
@@ -208,7 +211,7 @@ def test_grouped_constant_output():
         "bounds": [[0, 1], [0, 1], [0, 1]],
     }
     N = 256
-    param_values = saltelli.sample(problem, N, calc_second_order=False)
+    param_values = sobol_sampler.sample(problem, N, calc_second_order=False)
     model_results = mock_model(param_values)
     Si = sobol.analyze(problem, model_results, calc_second_order=False)
 
@@ -220,3 +223,64 @@ def test_grouped_constant_output():
     ), "Constant outputs should produce 0 total order sensitivity"
     assert np.all(Si["S1_conf"] == 0.0), "Constant outputs should produce 0 CI"
     assert np.all(Si["ST_conf"] == 0.0), "Constant outputs should produce 0 CI"
+
+
+def test_partial_constant_output():
+    """Sobol inner functions with some output columns constant, others varying."""
+    from SALib.analyze.sobol import first_order, total_order
+
+    rng = np.random.default_rng(42)
+    N = 10
+    D = 3
+    A = rng.random((N, D))
+    B = rng.random((N, D))
+    AB = rng.random((N, D))
+
+    # column 0: strictly constant
+    A[:, 0] = 0.5
+    B[:, 0] = 0.5
+    AB[:, 0] = 0.5
+
+    s1 = first_order(A, AB, B)
+    st = total_order(A, AB, B)
+
+    # No NaN or inf
+    for name, arr in [("S1", s1), ("ST", st)]:
+        assert not np.any(np.isnan(arr)), f"{name} contains NaN: {arr}"
+        assert not np.any(np.isinf(arr)), f"{name} contains inf: {arr}"
+
+    # Constant column returns zero
+    assert s1[0] == 0.0, f"S1 constant col should be 0, got {s1[0]}"
+    assert st[0] == 0.0, f"ST constant col should be 0, got {st[0]}"
+
+    # Non-constant columns should have finite, non-trivial values
+    assert np.all(np.isfinite(s1[1:])), f"S1 non-constant cols not finite: {s1}"
+    assert np.all(np.isfinite(st[1:])), f"ST non-constant cols not finite: {st}"
+
+
+def test_partial_constant_output_second_order():
+    """second_order with some output columns constant, others varying."""
+    from SALib.analyze.sobol import second_order
+
+    rng = np.random.default_rng(42)
+    N = 10
+    D = 3
+    A = rng.random((N, D))
+    B = rng.random((N, D))
+    ABj = rng.random((N, D))
+    ABk = rng.random((N, D))
+    BAj = rng.random((N, D))
+
+    # column 0: strictly constant across all inputs
+    A[:, 0] = 0.5
+    B[:, 0] = 0.5
+    ABj[:, 0] = 0.5
+    ABk[:, 0] = 0.5
+    BAj[:, 0] = 0.5
+
+    s2 = second_order(A, ABj, ABk, BAj, B)
+
+    assert not np.any(np.isnan(s2)), f"S2 contains NaN: {s2}"
+    assert not np.any(np.isinf(s2)), f"S2 contains inf: {s2}"
+    assert s2[0] == 0.0, f"S2 constant col should be 0, got {s2[0]}"
+    assert np.all(np.isfinite(s2[1:])), f"S2 non-constant cols not finite: {s2}"
